@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,13 @@ import (
 
 type Server struct {
 	conns map[*websocket.Conn]bool
+}
+
+// Message represents the structure of an incoming message
+type Message struct {
+	username string `json:"username"`
+	color    string `json:"color"`
+	content  string `json:"content"`
 }
 
 func NewServer() *Server {
@@ -55,12 +63,22 @@ func (s *Server) readLoop(ws *websocket.Conn) {
 			continue // if we want to keep the connection open if the client sends malformed request
 		}
 
-		msg := buf[:n]
-		// fmt.Println(string(msg))
+		rawMsg := buf[:n]
 
-		// ws.Write([]byte("thank you for the message!"))
+		// Parse the message
+		var message Message
+		if err := json.Unmarshal(rawMsg, &message); err != nil {
+			fmt.Println("error parsing message:", err)
+			continue
+		}
 
-		s.broadcast(msg)
+		// Process the message
+		fmt.Printf("Received message from %s (color: %s): %s\n", message.username, message.color, message.content)
+
+		// re-encode and broadcast the message
+		encodedMsg, _ := json.Marshal(message)
+
+		s.broadcast(encodedMsg)
 	}
 }
 
